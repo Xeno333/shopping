@@ -119,7 +119,16 @@ function shopping.shop(name, page)
 		local item_stack = shop[i][1]
 		local price = shop[i][2]
 		local seller_name = shop[i][3]
-		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1,1;" .. item_stack .. ";buy_" .. i .. ";" .. "$" .. price .. "]"
+
+		local meta = ItemStack(item_stack):get_meta()
+		local metadata_str = ""
+		-- Collect all metadata fields
+		for key, value in pairs(meta:to_table().fields) do
+			metadata_str = metadata_str .. key .. ": " .. value .. "\n"
+		end
+
+		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1,1;" .. item_stack .. ";buy_" .. i .. ";" .. "$" .. price .. "]" ..
+		"tooltip[buy_" .. i .. ";" .. minetest.formspec_escape(metadata_str) .. "]"
 		col = col + 1
 	end
 
