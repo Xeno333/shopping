@@ -56,7 +56,7 @@ local function get_item_from_shop(name, index)
 	
 
 	privs = minetest.get_player_privs(name)
-	if privs["server_shop_admin"] then
+	if privs["shopping_admin"] then
 		if give_item_to_player(name, shop[index][1]) then
 			remove_entry(shop, index)
 		else

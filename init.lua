@@ -12,7 +12,7 @@ dofile(modpath.."/player_to_player_shop.lua")
 
 
 
-minetest.register_privilege("server_shop_admin", {
+minetest.register_privilege("shopping_admin", {
 	description = "Lets player remove, add things to server shop, or nuke shop",
 })
 
@@ -51,7 +51,7 @@ minetest.register_chatcommand("shop", {
 minetest.register_chatcommand("nukeshop", {
 	description = "Clears shop",
 	privs = {
-		server_shop_admin = true,
+		shopping_admin = true,
 	},
 	func = function()
 		local mod_storage = shopping.storage
