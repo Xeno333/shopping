@@ -68,10 +68,10 @@ local function get_item_from_shop(name, index)
 	end
 
 
-	if (jeans_economy.get_account(name) < shop[index][2]) and (not name == shop[index][3]) then
+	if (jeans_economy.get_account(name) < shop[index][2]) and (not (name == shop[index][3])) then
 		return false, "You don't have enough money!"
 	else
-		if not name == shop[index][3] then
+		if not (name == shop[index][3]) then
 			jeans_economy.book(name, shop[index][3], shop[index][2], name .. " bought item for " .. shop[index][2])
 		end
 
@@ -128,7 +128,7 @@ function shopping.shop(name, page)
 		end
 
 		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1,1;" .. item_stack .. ";buy_" .. i .. ";" .. "$" .. price .. "]" ..
-		"tooltip[buy_" .. i .. ";" .. minetest.formspec_escape(metadata_str) .. "]"
+		"tooltip[buy_" .. i .. ";" .. "Seller: " .. seller_name .. "\n" .. minetest.formspec_escape(metadata_str) .. "]"
 		col = col + 1
 	end
 
