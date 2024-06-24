@@ -127,8 +127,8 @@ function shopping.shop(name, page)
 			metadata_str = metadata_str .. key .. ": " .. value .. "\n"
 		end
 
-		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1,1;" .. item_stack .. ";buy_" .. i .. ";" .. "$" .. price .. "]" ..
-		"tooltip[buy_" .. i .. ";" .. "Seller: " .. seller_name .. "\n" .. minetest.formspec_escape(metadata_str) .. "]"
+		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1.2,1.2;" .. ItemStack(item_stack):get_name() .. ";buy_" .. i .. ";]" ..
+		"tooltip[buy_" .. i .. ";" .. "$" .. price .. "\n" .. "Seller: " .. seller_name .. "\n" .. minetest.formspec_escape(metadata_str) .. "]"
 		col = col + 1
 	end
 
