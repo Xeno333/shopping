@@ -152,14 +152,20 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 	if formname == "shopping:shop_formspec" then
 		local player_name = player:get_player_name()
 		local page = tonumber(fields.page) or 1
+		local mod_storage = shopping.storage
 
-		
+		if page < 1 then
+			page = 1
+		end
+
 		if fields.next then
 			page = page + 1
 			shopping.shop(player_name, page)
 			return
 		elseif fields.prev then
-			page = page - 1
+			if page < 1 then
+				page = page - 1
+			end
 			shopping.shop(player_name, page)
 			return
 		elseif fields.close then
