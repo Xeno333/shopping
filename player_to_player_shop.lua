@@ -164,8 +164,9 @@ minetest.register_on_player_receive_fields(function(player, formname, fields)
 			return
 		elseif fields.prev then
 			if page < 1 then
-				page = page - 1
+				page = 2
 			end
+			page = page - 1
 			shopping.shop(player_name, page)
 			return
 		elseif fields.close then
