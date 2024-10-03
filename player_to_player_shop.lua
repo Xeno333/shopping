@@ -37,7 +37,6 @@ end
 
 
 local function add_item_to_shop(itemstack, price, name)
-	if price < 0 then return false, "Bad price!" end
 	local mod_storage = shopping.storage
 	local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
 
@@ -231,6 +230,7 @@ end
 
 -- Sell
 function shopping.sell(name, itemstack, price)
+	if price < 0 then return false, "Bad price!" end
 	rc, s = add_item_to_shop(itemstack, price, name)
 	remove_held_item(name)
 	return rc, s
