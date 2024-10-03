@@ -37,6 +37,7 @@ end
 
 
 local function add_item_to_shop(itemstack, price, name)
+	if price < 0 then return false, "Bad price!" end
 	local mod_storage = shopping.storage
 	local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
 
@@ -67,6 +68,7 @@ local function get_item_from_shop(name, index)
 		return true, "Item bought as admin!"
 	end
 
+	if shop[index][2] < 0 then return false, "Bad price!" end
 
 	if (jeans_economy.get_account(name) < shop[index][2]) and (not (name == shop[index][3])) then
 		return false, "You don't have enough money!"
