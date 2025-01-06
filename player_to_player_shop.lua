@@ -85,6 +85,14 @@ shop_inv = core.create_detached_inventory("shop_inv", {
 load_shop()
 
 
+-- Add load old script here
+
+local old_shop = core.deserialize(shopping.storage:get_string("shop"))
+
+if old_shop then
+	print("A")
+end
+
 
 -- functions
 
