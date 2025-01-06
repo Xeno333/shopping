@@ -1,204 +1,131 @@
-
-shopping.items_per_page = 48
-
+local shop_inv = {}
 
 
-
-local function give_item_to_player(player_name, item_stack)
-	local player = minetest.get_player_by_name(player_name)
-	if not player then
-		-- Player not found, handle error
-		return false
+local function save_shop()
+	local list = shop_inv:get_list("main")
+	local to_store = {}
+	if list then
+		for _, stack in pairs(list) do
+			to_store[#to_store+1] = stack:to_string()
+		end
 	end
 
-	local inv = player:get_inventory()
-	if not inv:room_for_item("main", item_stack) then
-		-- Player does not have enough room for the item stack
-		minetest.chat_send_player(player_name, "Not enough room in your inventory.")
-		return false
-	end
-
-	inv:add_item("main", item_stack)
-
-	return true
+	shopping.storage:set_string("shop_inv", core.write_json(to_store))
+	shopping.storage:set_int("shop_inv_size", shop_inv:get_size("main"))
 end
 
 
-
-local function remove_entry(list, index)
-	-- Shift elements to the left starting from the removed index
-	for i = index, #list - 1 do
-		list[i] = list[i + 1]
+local function load_shop()
+	local str = shopping.storage:get_string("shop_inv") or "{}"
+	if str == "" then str = "{}" end
+	local stored = core.parse_json(str) or {}
+	
+	local shop_list = {}
+	for _, stack in pairs(stored) do
+		shop_list[#shop_list+1] = ItemStack(stack)
 	end
-	-- Remove the last element (which is now a duplicate)
-	list[#list] = nil
+	
+	shop_inv:set_list("main", shop_list)
+	shop_inv:set_size("main", shopping.storage:get_int("shop_inv_size") or 0)
 end
+
+
+shop_inv = core.create_detached_inventory("shop_inv", {
+	allow_move = function() return 0 end,
+	allow_put = function() return 0 end,
+	allow_take = function(inv, listname, index, stack, player)
+		if stack ~= inv:get_stack(listname, index) then return 0 end
+	
+		local size = stack:get_count()
+		local name = player:get_player_name()
+		local privs = minetest.get_player_privs(name)
+		local meta = stack:get_meta()
+
+
+		local price = meta:get_int("price")
+		if jeans_economy.get_account(name) < price then
+			minetest.chat_send_player(name, "Not enough money!")
+			return 0
+		end
+
+		local player_inv = player:get_inventory()
+		if not inv:room_for_item(listname, stack) then
+			minetest.chat_send_player(name, "Not enough room in your inventory!")
+			return
+		end
+
+		-- Sell
+		core.after(0, function()
+			-- re-order
+			local s = inv:get_size(listname)
+			inv:set_stack(listname, index, inv:get_stack(listname, s))
+			inv:set_size(listname, s-1)
+
+			local seller = meta:get_string("seller")
+			if not (privs["shopping_admin"] or name == seller) then
+				local price = meta:get_int("price")
+				jeans_economy.book(name, seller, price, name .. " bought item for " .. price)
+			end
+
+			meta:set_string("price", "")
+			meta:set_string("seller", "")
+			meta:set_string("description", meta:get_string("backup_description"))
+			meta:set_string("backup_description", "")
+
+			player_inv:add_item("main", stack)
+
+			save_shop()
+		end)
+
+		return 0
+	end
+})
+
+
+load_shop()
+
+
+
+-- functions
 
 
 
 local function add_item_to_shop(itemstack, price, name)
-	local mod_storage = shopping.storage
-	local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
+	local s = shop_inv:get_size("main") + 1
+	shop_inv:set_size("main", s)
 
-	shop[#shop + 1] = {itemstack:to_string(), price, name}
+	local meta = itemstack:get_meta()
+	meta:set_int("price", price)
+	meta:set_string("seller", name)
+	meta:set_string("backup_description", meta:get_string("description"))
+	meta:set_string("description", itemstack:get_description() .. "\n$" .. price)
 
-	mod_storage:set_string("shop", minetest.serialize(shop))
+	shop_inv:set_stack("main", s, itemstack)
+
+	save_shop()
+
 	return true, "Item listed!"
 end
 
-local function get_item_from_shop(name, index)
-	local mod_storage = shopping.storage
-	local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
-
-	if (index == 0) or (index > #shop) then
-		return false, "Invalid index!"
-	end
-	
-
-	privs = minetest.get_player_privs(name)
-	if privs["shopping_admin"] then
-		if give_item_to_player(name, shop[index][1]) then
-			remove_entry(shop, index)
-		else
-			return false, "Failed!"
-		end
-		
-		mod_storage:set_string("shop", minetest.serialize(shop))
-		return true, "Item bought as admin!"
-	end
-
-	if shop[index][2] < 0 then return false, "Bad price!" end
-
-	if (jeans_economy.get_account(name) < shop[index][2]) and (not (name == shop[index][3])) then
-		return false, "You don't have enough money!"
-	else
-		if not (name == shop[index][3]) then
-			jeans_economy.book(name, shop[index][3], shop[index][2], name .. " bought item for " .. shop[index][2])
-		end
-
-		if give_item_to_player(name, shop[index][1]) then
-			remove_entry(shop, index)
-		else
-			return false, "Failed!"
-		end
-
-		mod_storage:set_string("shop", minetest.serialize(shop))
-		return true, "Item bought!"
-	end
-end
-
-
--- Buy
-function shopping.buy(name, index)
-	return get_item_from_shop(name, index)
-end
 
 
 -- Shop
-function shopping.shop(name, page)
-	local mod_storage = shopping.storage
-	local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
+function shopping.shop(name)
+	local count = shop_inv:get_size("main")
+	local h = count / 4 + ((count % 4 > 0) and 1 or 0)
 
-	local formspec = "size[9,8.5]"  -- Increased width to accommodate the scrollbar
-	formspec = formspec .. "label[4.2,0;Shop]"  -- Title of the formspec
-	formspec = formspec .. "button_exit[0.2,0.2;2,1;close;Close]" -- Add a Close button
+	local formspec = "size[11,10]"..
+		"label[0,0;Shop]"..
+		"button_exit[0.2,0.3;2,1;close;Close]"..
 
-	-- Pagination logic
-	local total_pages = math.ceil(#shop / shopping.items_per_page)
-	page = page or 1 -- Ensure page is initialized
-	local start_index = (page - 1) * shopping.items_per_page + 1
-	local end_index = math.min(page * shopping.items_per_page, #shop)
+		"scroll_container[1,1.5;10,4;craft;vertical;0.1;true]"..
+		"list[detached:shop_inv;main;0,0;8," .. h .. ";]"..
+		"scroll_container_end[]"..
 
-	-- Display items in the shop for the current page
-	local row = 1
-	local col = 0
-	for i = start_index, end_index do
-		if col == 8 then
-			col = 0
-			row = row + 1
-		end
-		local item_stack = shop[i][1]
-		local price = shop[i][2]
-		local seller_name = shop[i][3]
-
-		local meta = ItemStack(item_stack):get_meta()
-		local metadata_str = ""
-		-- Collect all metadata fields
-		for key, value in pairs(meta:to_table().fields) do
-			metadata_str = metadata_str .. key .. ": " .. value .. "\n"
-		end
-
-		formspec = formspec .. "item_image_button[" .. col .. "," .. row .. ";1.2,1.2;" .. ItemStack(item_stack):get_name() .. ";buy_" .. i .. ";]" ..
-		"tooltip[buy_" .. i .. ";" .. minetest.registered_items[ItemStack(item_stack):get_name()].description .. "\n" .. "$" .. price .. "\n" .. "Seller: " .. seller_name .. "\n" .. minetest.formspec_escape(metadata_str) .. "]" .. 
-		"label[" .. (col + 0.7) .. "," .. (row + 0.7) .. ";" .. ItemStack(item_stack):get_count() .. "]"
-		col = col + 1
-	end
-
-	-- Previous page button
-	if page > 1 then
-		formspec = formspec .. "button[0,8;2,1;prev;<< Prev]"
-	end
-	-- Next page button
-	if page < total_pages then
-		formspec = formspec .. "button[7,8;2,1;next;Next >>]"
-	end
-
-	formspec = formspec .. "field[3.5,8;2,1;page;;" .. page .. "]" -- Add a hidden field to hold the current page
+        "list[current_player;main;1,6;8,4;]"
 
 	minetest.show_formspec(name, "shopping:shop_formspec", formspec)
 end
-
--- Register a callback to handle button clicks in the shop formspec
-minetest.register_on_player_receive_fields(function(player, formname, fields)
-	if formname == "shopping:shop_formspec" then
-		local player_name = player:get_player_name()
-		local page = tonumber(fields.page) or 1
-		local mod_storage = shopping.storage
-
-		if page < 1 then
-			page = 1
-		end
-
-		if fields.next then
-			page = page + 1
-			shopping.shop(player_name, page)
-			return
-		elseif fields.prev then
-			if page < 1 then
-				page = 2
-			end
-			page = page - 1
-			shopping.shop(player_name, page)
-			return
-		elseif fields.close then
-			return
-		end
-		for field, _ in pairs(fields) do
-			if field:sub(1, 4) == "buy_" then
-				local index = tonumber(field:sub(5))
-				if index then
-					local success, s = shopping.buy(player_name, index)
-					minetest.chat_send_player(player_name, s)
-					shopping.shop(player_name, page)
-				end
-			end
-		end
-		elseif fields.page then
-			local mod_storage = shopping.storage
-			local shop = minetest.deserialize(mod_storage:get_string("shop")) or {}
-			local total_pages = math.ceil(#shop / shopping.items_per_page)
-
-			if page < 1 then
-				page = 1
-			elseif page > 1 then
-				page = total_pages
-			end
-
-			shopping.shop(player_name, page)
-		return
-	end
-end)
-
 
 
 
@@ -207,22 +134,13 @@ end)
 local function remove_held_item(player_name)
 	local player = minetest.get_player_by_name(player_name)
 	if not player then
-		-- Player not found, handle error
-		return
-	end
-
-	local wielded_item = player:get_wielded_item()
-
-	if wielded_item:is_empty() then
-		-- Player is not holding anything, no need to remove
 		return
 	end
 
 	local inv = player:get_inventory()
 	local wielded_index = player:get_wield_index()
 
-	-- Remove the wielded item from the player's inventory
-	inv:set_stack("main", wielded_index, ItemStack(nil))
+	inv:set_stack("main", wielded_index, ItemStack(""))
 end
 
 
@@ -231,10 +149,9 @@ end
 -- Sell
 function shopping.sell(name, itemstack, price)
 	if price < 0 then return false, "Bad price!" end
-	rc, s = add_item_to_shop(itemstack, price, name)
+	local rc, s = add_item_to_shop(itemstack, price, name)
 	remove_held_item(name)
 	return rc, s
-	--return true, player_name .. " listed " .. item_name .. " for " .. price
 end
 
 
