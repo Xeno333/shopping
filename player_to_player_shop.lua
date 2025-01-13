@@ -1,10 +1,15 @@
 local shop_inv = {}
 local shop_inv_expired = {}
-local max_price = core.settings:get("shopping_max_price") or 1000
+local player_listing_counts = {}
 
-local clean_timer = 60 -- seconds
-local shop_lifetime = 60*60*24*7 -- seconds equal to 7 days
-local expire_time = 60*60*24*7
+
+local max_price = tonumber(core.settings:get("shopping_max_price")) or 1000
+
+local clean_timer = tonumber(core.settings:get("shopping_shop_update_timer")) or 60
+local shop_lifetime = tonumber(core.settings:get("shopping_shop_lifetime")) or 604800
+local expire_time = tonumber(core.settings:get("shopping_expire_time")) or 604800
+
+local max_listings_per_player = tonumber(core.settings:get("shopping_max_listings_per_player")) or 20
 
 
 
@@ -34,7 +39,11 @@ local function save_shop()
 
 	shopping.storage:set_string("shop_inv_expired", core.write_json(to_store))
 	shopping.storage:set_int("shop_inv_expired_size", shop_inv_expired:get_size("main"))
+
+	shopping.storage:set_string("shop_player_listing_counts", core.write_json(player_listing_counts))
 end
+
+shopping.save_shop = save_shop
 
 
 local function load_shop()
@@ -63,30 +72,14 @@ local function load_shop()
 
 	shop_inv_expired:set_list("main", shop_list)
 	shop_inv_expired:set_size("main", shopping.storage:get_int("shop_inv_expired_size") or 0)
+
+
+	local str = shopping.storage:get_string("shop_player_listing_counts") or "{}"
+	if str == "" then str = "{}" end
+	player_listing_counts = core.parse_json(str) or {}
 end
 
-
-
-
-core.register_chatcommand("nukeshop", {
-	description = "Clears shop",
-	privs = {
-		shopping_admin = true,
-	},
-	func = function()
-		local mod_storage = shopping.storage
-		mod_storage:set_string("shop_inv", core.write_json({}) or "")
-		mod_storage:set_int("shop_inv_size", 0)
-
-
-		mod_storage:set_string("shop_inv_expired", core.write_json({}) or "")
-		mod_storage:set_int("shop_inv_expired_size", 0)
-
-		load_shop()
-
-		return true, "Shop nuked!"
-	end
-})
+shopping.load_shop = load_shop
 
 
 
@@ -106,6 +99,7 @@ shop_inv = core.create_detached_inventory("shop_inv", {
 		local privs = core.get_player_privs(name)
 		local meta = stack:get_meta()
 		local price = meta:get_int("price")
+		local seller = meta:get_string("seller")
 
 
 		if not (privs["shopping_admin"] or name == seller) then
@@ -129,7 +123,6 @@ shop_inv = core.create_detached_inventory("shop_inv", {
 			inv:set_stack(listname, s, ItemStack(""))
 			inv:set_size(listname, s-1)
 
-			local seller = meta:get_string("seller")
 			if not (privs["shopping_admin"] or name == seller) then
 				local price = meta:get_int("price")
 				jeans_economy.book(name, seller, price, name .. " bought item for " .. price)
@@ -142,6 +135,9 @@ shop_inv = core.create_detached_inventory("shop_inv", {
 			meta:set_string("backup_description", "")
 
 			player_inv:add_item("main", stack)
+
+			player_listing_counts[seller] = (player_listing_counts[seller] or 1) - 1
+			if player_listing_counts[seller] <= 0 then player_listing_counts[seller] = nil end
 
 			save_shop()
 		end)
@@ -159,6 +155,7 @@ shop_inv_expired = core.create_detached_inventory("shop_inv_expired", {
 		local name = player:get_player_name()
 		local privs = core.get_player_privs(name)
 		local meta = stack:get_meta()
+		local seller = meta:get_string("seller")
 
 		if not (privs["shopping_admin"] or name == seller) then
 			return 0
@@ -185,6 +182,9 @@ shop_inv_expired = core.create_detached_inventory("shop_inv_expired", {
 			meta:set_string("backup_description", "")
 
 			player_inv:add_item("main", stack)
+
+			player_listing_counts[seller] = (player_listing_counts[seller] or 1) - 1
+			if player_listing_counts[seller] <= 0 then player_listing_counts[seller] = nil end
 
 			save_shop()
 		end)
@@ -209,6 +209,10 @@ load_shop()
 
 
 local function add_item_to_shop(itemstack, price, name)
+	if max_listings_per_player ~= 0 and player_listing_counts[name] and player_listing_counts[name] >= max_listings_per_player then
+		return false, "You already have listed as many items as you can in shop, please remove some to list more."
+	end
+
 	price = math.abs(price)
 
 	local s = shop_inv:get_size("main") + 1
@@ -227,6 +231,8 @@ local function add_item_to_shop(itemstack, price, name)
 	meta:set_string("description", desc .. "\n$" .. price .. "\nSold by: " .. name)
 
 	shop_inv:set_stack("main", s, itemstack)
+
+	player_listing_counts[name] = (player_listing_counts[name] or 0) + 1
 
 	save_shop()
 
@@ -383,6 +389,10 @@ local function shop_clean_on_timer()
 			shop_inv_expired:set_stack("main", i, shop_inv_expired:get_stack("main", s))
 			shop_inv_expired:set_stack("main", s, ItemStack(""))
 			shop_inv_expired:set_size("main", s-1)
+
+			local seller = meta:get_int("seller")
+			player_listing_counts[seller] = (player_listing_counts[seller] or 1) - 1
+			if player_listing_counts[seller] <= 0 then player_listing_counts[seller] = nil end
 		else
 			meta:set_int("timer", time)
 		end
@@ -395,3 +405,50 @@ end
 
 
 core.after(clean_timer, shop_clean_on_timer)
+
+
+
+
+
+
+
+
+core.register_chatcommand("nukeshop", {
+	description = "Clears shop",
+	privs = {
+		shopping_admin = true,
+	},
+	func = function()
+		local mod_storage = shopping.storage
+		mod_storage:set_string("shop_inv", core.write_json({}) or "")
+		mod_storage:set_int("shop_inv_size", 0)
+
+
+		mod_storage:set_string("shop_inv_expired", core.write_json({}) or "")
+		mod_storage:set_int("shop_inv_expired_size", 0)
+
+		load_shop()
+
+		return true, "Shop nuked!"
+	end
+})
+
+
+
+
+core.register_chatcommand("expire_all", {
+	description = "Clears expired items in shop",
+	privs = {
+		shopping_admin = true,
+	},
+	func = function()
+		local mod_storage = shopping.storage
+
+		mod_storage:set_string("shop_inv_expired", core.write_json({}) or "")
+		mod_storage:set_int("shop_inv_expired_size", 0)
+
+		load_shop()
+
+		return true, "Shop nuked!"
+	end
+})
