@@ -169,7 +169,7 @@ shop_inv_expired = core.create_detached_inventory("shop_inv_expired", {
 			core.chat_send_player(name, "Not enough room in your inventory!")
 			return 0
 		end
-		
+
 		-- Sell
 		core.after(0, function()
 			-- re-order
@@ -282,9 +282,7 @@ function shopping.shop(name, inv, tab, inv_ref)
 		"scroll_container_end[]"..
 		"scrollbar[0.4,1.2;0.3,3;vertical;scrollbar;1]"..
 
-        "list[current_player;main;1,6;8,4;]"..
-	"listring[]"..
-	"listring[]"
+        "list[current_player;main;1,6;8,4;]"
 
 	core.show_formspec(name, "shopping:shop_formspec", formspec)
 end
