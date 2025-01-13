@@ -2,9 +2,9 @@ local shop_inv = {}
 local shop_inv_expired = {}
 local max_price = core.settings:get("shopping_max_price") or 1000
 
-local clean_timer = 1 -- seconds
-local shop_lifetime = 2--60*60*24*7 -- seconds equal to 7 days
-local expire_time = 2--60*60*24*7
+local clean_timer = 60 -- seconds
+local shop_lifetime = 60*60*24*7 -- seconds equal to 7 days
+local expire_time = 60*60*24*7
 
 
 
@@ -342,7 +342,7 @@ local function shop_clean_on_timer()
 		local itemstack = shop_inv:get_stack("main", i)
 		local meta = itemstack:get_meta()
 
-		local time = 0--meta:get_int("timer") - clean_timer
+		local time = meta:get_int("timer") - clean_timer
 
 		-- Expire
 		if time <= 0 then
@@ -360,6 +360,9 @@ local function shop_clean_on_timer()
 			shop_inv:set_stack("main", i, shop_inv:get_stack("main", s))
 			shop_inv:set_stack("main", s, ItemStack(""))
 			shop_inv:set_size("main", s-1)
+		else
+	                meta:set_int("timer", time)
+
 		end
 	end
 
@@ -379,6 +382,8 @@ local function shop_clean_on_timer()
 			shop_inv_expired:set_stack("main", i, shop_inv_expired:get_stack("main", s))
 			shop_inv_expired:set_stack("main", s, ItemStack(""))
 			shop_inv_expired:set_size("main", s-1)
+		else
+			meta:set_int("timer", time)
 		end
 	end
 
