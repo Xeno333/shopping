@@ -276,12 +276,15 @@ function shopping.shop(name, inv, tab, inv_ref)
 
 		"tabheader[0,0;tab;Shop,Expired;" .. tab .. ";false;true]"..
 
-		"scroll_container[1,1.5;11,4;scrollbar;vertical;0.1;true]"..
+		"scroll_container[1,1.5;11,4;scrollbar;vertical;0.1]"..
 		"list[" .. inv .. ";0,0;8," .. h .. ";]"..
+		"listring[current_player;main]"..
 		"scroll_container_end[]"..
 		"scrollbar[0.4,1.2;0.3,3;vertical;scrollbar;1]"..
 
-        "list[current_player;main;1,6;8,4;]"
+        "list[current_player;main;1,6;8,4;]"..
+	"listring[]"..
+	"listring[]"
 
 	core.show_formspec(name, "shopping:shop_formspec", formspec)
 end
