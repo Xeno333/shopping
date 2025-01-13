@@ -1,0 +1,1 @@
+shopping_max_price (Max Price of item) int 1000

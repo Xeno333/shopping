@@ -31,21 +31,6 @@ core.register_chatcommand("shop", {
 	end
 })
 
-
-core.register_chatcommand("nukeshop", {
-	description = "Clears shop",
-	privs = {
-		shopping_admin = true,
-	},
-	func = function()
-		local mod_storage = shopping.storage
-		mod_storage:set_string("shop_inv", core.write_json({}) or "")
-		mod_storage:set_int("shop_inv_size", 0)
-		return true, "Shop nuked!"
-	end
-})
-
-
 core.register_chatcommand("sell", {
 	params = "<price>",
 	description = "List for sale in player to player shop.",
