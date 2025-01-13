@@ -47,8 +47,8 @@ core.register_chatcommand("sell", {
 			return false, "Bad args!"
 		end
 
-		local num_price = math.floor(tonumber(price))
-		if (not num_price) or num_price < 1 then
+		local num_price = math.floor(tonumber(price) or 0)
+		if num_price < 1 then
 			return false, "Invalid price"
 		end
 
