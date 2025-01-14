@@ -442,13 +442,29 @@ core.register_chatcommand("expire_all", {
 		shopping_admin = true,
 	},
 	func = function()
-		local mod_storage = shopping.storage
+		local num = shop_inv:get_size("main")
 
-		mod_storage:set_string("shop_inv_expired", core.write_json({}) or "")
-		mod_storage:set_int("shop_inv_expired_size", 0)
+	        for i = 1, num do
+        	        local itemstack = shop_inv:get_stack("main", i)
+	                local meta = itemstack:get_meta()
+	
+	                -- Expire
+	                meta:set_int("timer", expire_time)
 
-		load_shop()
+                        meta:set_string("description", meta:get_string("backup_description") .. core.colorize("#FF0000", "\nEXPIR>
 
-		return true, "Shop nuked!"
+                        -- expire
+                        local s = shop_inv_expired:get_size("main")+1
+                        shop_inv_expired:set_size("main", s)
+                        shop_inv_expired:set_stack("main", s, ItemStack(itemstack:to_string()))
+
+                        -- remove
+                        s = shop_inv:get_size("main")
+                        shop_inv:set_stack("main", i, shop_inv:get_stack("main", s))
+                        shop_inv:set_stack("main", s, ItemStack(""))
+                        shop_inv:set_size("main", s-1)
+		end
+
+		return true, "Shop expired!"
 	end
 })
