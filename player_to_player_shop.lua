@@ -288,7 +288,7 @@ function shopping.shop(name, inv, tab, inv_ref)
 		"scroll_container_end[]"..
 		"scrollbar[0.4,1.2;0.3,3;vertical;scrollbar;1]"..
 
-        "list[current_player;main;1,6;8,4;]"
+		"list[current_player;main;1,6;8,4;]"
 
 	core.show_formspec(name, "shopping:shop_formspec", formspec)
 end
@@ -368,7 +368,7 @@ local function shop_clean_on_timer()
 			shop_inv:set_stack("main", s, ItemStack(""))
 			shop_inv:set_size("main", s-1)
 		else
-	                meta:set_int("timer", time)
+					meta:set_int("timer", time)
 
 		end
 	end
@@ -444,26 +444,28 @@ core.register_chatcommand("expire_all", {
 	func = function()
 		local num = shop_inv:get_size("main")
 
-	        for i = 1, num do
-        	        local itemstack = shop_inv:get_stack("main", i)
-	                local meta = itemstack:get_meta()
-	
-	                -- Expire
-	                meta:set_int("timer", expire_time)
+		for i = 1, num do
+			local itemstack = shop_inv:get_stack("main", i)
+			local meta = itemstack:get_meta()
 
-                        meta:set_string("description", meta:get_string("backup_description") .. core.colorize("#FF0000", "\nEXPIR>
+			-- Expire
+			meta:set_int("timer", expire_time)
 
-                        -- expire
-                        local s = shop_inv_expired:get_size("main")+1
-                        shop_inv_expired:set_size("main", s)
-                        shop_inv_expired:set_stack("main", s, ItemStack(itemstack:to_string()))
+			meta:set_string("description", meta:get_string("backup_description") .. core.colorize("#FF0000", "\nEXPIRED\n") .. "belongs to: " .. meta:get_string("seller"))
 
-                        -- remove
-                        s = shop_inv:get_size("main")
-                        shop_inv:set_stack("main", i, shop_inv:get_stack("main", s))
-                        shop_inv:set_stack("main", s, ItemStack(""))
-                        shop_inv:set_size("main", s-1)
+			-- expire
+			local s = shop_inv_expired:get_size("main")+1
+			shop_inv_expired:set_size("main", s)
+			shop_inv_expired:set_stack("main", s, ItemStack(itemstack:to_string()))
+
+			-- remove
+			s = shop_inv:get_size("main")
+			shop_inv:set_stack("main", i, shop_inv:get_stack("main", s))
+			shop_inv:set_stack("main", s, ItemStack(""))
+			shop_inv:set_size("main", s-1)
 		end
+
+		save_shop()
 
 		return true, "Shop expired!"
 	end
