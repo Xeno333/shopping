@@ -1,0 +1,9 @@
+shopping_max_price (Max Price of item) int 1000
+
+shopping_shop_update_timer (Time between shop refreashes for expiring items in seconds) int 60
+
+shopping_shop_lifetime (Lifetime of an item in shop before expiring in seconds) int 604800
+
+shopping_expire_time (Lifetime of an item in expire tab before being removed in seconds) int 604800
+
+shopping_max_listings_per_player (Amount of listings per player set to 0 for none) int 20
