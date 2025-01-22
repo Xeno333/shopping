@@ -426,6 +426,7 @@ core.register_chatcommand("nukeshop", {
 
 		mod_storage:set_string("shop_inv_expired", core.write_json({}) or "")
 		mod_storage:set_int("shop_inv_expired_size", 0)
+		shopping.storage:set_string("shop_player_listing_counts", core.write_json({}) or "")
 
 		load_shop()
 
